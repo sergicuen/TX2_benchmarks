@@ -55,4 +55,4 @@ B) hacer comit
 c) hacer 
 
 en la máquina destino
-A) git update ??
+/DirRepo$ git pull
