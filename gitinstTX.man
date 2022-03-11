@@ -1,0 +1,2 @@
+git clone para bajar repo completo
+git pull para bajar acutalizaciones
