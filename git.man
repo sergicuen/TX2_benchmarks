@@ -1,0 +1,58 @@
+
+########## CREAR REPO LOCAL (en mi PC o portátil) #############################
+A)
+git config --global user.name "Firstname Lastname"
+git config --global user.email "sergio@dtic.ua.es"
+
+B) IR A LA CARPETA E INICIALIZA EL REPO
+$ cd DirRepo
+/DirRepo$ git init
+
+C) AÑADIR archivos o carpetas 
+/DirRepo$ git add . 		// todo lo de la carpeta
+/DirRepo$ git add namefile 	// archivo 
+
+D) ACTUALIZAR el REPO
+/DirRepo$ git commit -m "comentario"
+
+
+######### AUTORIZAR PC en GITHUB #############################################
+A) crear clave en PC
+ssh-keygen -t rsa -C "sergio@dtic.ua.es"
+=> default
+=> escribir una contraseña
+B) copiar la clave 
+notepad ~/.ssh/id_rsa.pub
+
+C) añadir la clave a GitHub 
+=> Settings =>SSH and GPG keys => New SSH key
+copiar la clave
+
+D) verificar la conexión
+ssh -T git@github.com
+meter el password creado para la clave
+
+######### CREAR REPO en GITHUB ##############################################
+A) New Repository 
+=> name= DirRepo
+=> Public
+=> Create Repository
+
+
+######### Enviar el repo LOCAL a GITHUB #####################################
+git remote add origin https://github.com/sergicuen/DirRepo.git // crea la conexión entre los repos
+git branch -M main 	// cambiamos el nombre del branch local a main (es el nombre por defecto en github)
+git push -u origin main // envía el repo local a GitHub
+
+######### CLONAR EL REPO GITHUB A UNA MÁQUINA ##############################
+git clone git@github.com:sergicuen/DirRepo.git
+
+
+######### ACTUALIZACIONES DEL REPO #########################################
+en el PC 
+A) cambiar un archivo
+B) hacer comit 
+c) hacer 
+
+en la máquina destino
+A) git update ??
