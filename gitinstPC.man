@@ -1,0 +1,3 @@
+git add // para añadir archivos
+git commit -m "comentario" // para confirmar actualizaciones
+git push -u origin main // para subir actualizaciones
