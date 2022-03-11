@@ -1,0 +1,61 @@
+Configurar Clocks
+sudo -s 
+
+cat /sys/devices/gpu.0/devfreq/570000000.gpu/available_frequencies
+ esta es la mínima 76800000
+
+fijar la frecuencia de la GPU
+echo freq > max_freq
+echo freq > min_freq
+
+cat cur_freq
+
+https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%20Linux%20Driver%20Package%20Development%20Guide/power_management_nano.html#wwpID0E05J0HA
+To get system clock information
+•Enter the command:
+$ cat /sys/kernel/debug/clk/clk_summary
+To print the CPU lower boundary, upper boundary, and current frequency
+•Enter the commands:
+$ cat /sys/devices/system/cpu/cpu<x>/cpufreq/cpuinfo_min_freq
+$ cat /sys/devices/system/cpu/cpu<x>/cpufreq/cpuinfo_max_freq
+$ cat /sys/devices/system/cpu/cpu<x>/cpufreq/cpuinfo_cur_freq
+To change the CPU upper boundary
+•Enter the command:
+$ echo <cpu_freq> > /sys/devices/system/cpu/cpu<x>/cpufreq/scaling_max_freq
+To change the CPU lower boundary
+•Enter the command:
+$ echo <cpu_freq> > /sys/devices/system/cpu/cpu<x>/cpufreq/scaling_min_freq
+To set the static CPU frequency
+•Enter the commands:
+$ echo <cpu_freq> > /sys/devices/system/cpu/cpu<x>/cpufreq/scaling_min_freq
+$ echo <cpu_freq> > /sys/devices/system/cpu/cpu<x>/cpufreq/scaling_max_freq
+Where <cpu_freq> is the frequency value available at:
+/sys/devices/system/cpu/cpu<x>/cpufreq/scaling_available_frequencies 
+
+
+To print the GPU lower boundary, upper boundary, and current frequency
+•Enter the commands:
+$ cat /sys/devices/57000000.gpu/devfreq/57000000.gpu/min_freq
+$ cat /sys/devices/57000000.gpu/devfreq/57000000.gpu/max_freq
+$ cat /sys/devices/57000000.gpu/devfreq/57000000.gpu/cur_freq
+To change the GPU upper boundary
+•Enter the command:
+$ echo <gpu_freq> > /sys/devices/57000000.gpu/devfreq/57000000.gpu/max_freq
+To change the GPU lower boundary
+•Enter the command:
+$ echo <gpu_freq> > /sys/devices/57000000.gpu/devfreq/57000000.gpu/min_freq
+To set the static GPU frequency
+•Enter the command:
+$ echo <gpu_freq> > /sys/devices/57000000.gpu/devfreq/57000000.gpu/min_freq
+$ echo <gpu_freq> > /sys/devices/57000000.gpu/devfreq/57000000.gpu/max_freq
+Where <gpu_freq> is the value available in:
+/sys/devices/57000000.gpu/devfreq/57000000.gpu/available_frequencies
+
+Asignar IP estática
+https://stackoverflow.com/questions/66384210/how-te-set-a-static-ip-for-a-jetson-nano
+https://forums.developer.nvidia.com/t/set-static-ip-on-jetson-nano/107774/8
+
+Monitor de temperatura
+cat /sys/devices/virtual/thermal/thermal_zone*/temp
+cat /sys/devices/virtual/thermal/thermal_zone*/type
+https://elinux.org/Jetson/Thermal
