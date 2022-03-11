@@ -1,3 +1,4 @@
 git add // para añadir archivos
 git commit -m "comentario" // para confirmar actualizaciones
+git commit -a -m "comentario" // confirma todas la modificaciones de los archivos añadidos anteriormente
 git push -u origin main // para subir actualizaciones
