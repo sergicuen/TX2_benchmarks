@@ -1,0 +1,24 @@
+GPU_freq default
+mmult -s 512 -x 2 -y 2 -r 100 -b 1    	52s
+mmult -s 512 -x 4 -y 4 -r 100 -b 1   	 22s
+mmult -s 512 -x 8 -y 8 -r 100 -b 1   	14s
+mmult -s 512 -x 16 -y 16 -r 100 -b 1    	11s
+mmult -s 512 -x 32 -y 32 -r 100 -b 1    	12s
+
+GPU_freq min
+************* DMR
+mmult -s 512 -x 2 -y 2 -r 100 -b 1    	359s
+mmult -s 512 -x 4 -y 4 -r 100 -b 1    	112s
+mmult -s 512 -x 8 -y 8 -r 100 -b 1   	72s
+mmult -s 512 -x 16 -y 16 -r 100 -b 1    	50s
+mmult -s 512 -x 32 -y 32 -r 100 -b 1    	50s
+
+************* SECUENCIAL
+mmult_sec -s 512 -x 2 -y 2 -r 100 -b 1    	187s
+mmult_sec -s 512 -x 4 -y 4 -r 100 -b 1    	64s
+mmult_sec -s 512 -x 8 -y 8 -r 100 -b 1   		43s
+mmult_sec -s 512 -x 16 -y 16 -r 100 -b 1    	32s
+mmult_sec -s 512 -x 32 -y 32 -r 100 -b 1    	33s
+
+
+Nota: no utilizar mmults

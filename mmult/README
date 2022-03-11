@@ -1,0 +1,18 @@
+To compìle:
+
+$ make
+
+Makefile assumes that nvcc is located in /usr/local/cuda/bin/nvcc
+
+Usage:
+
+$ bin/mat_mul_redundant -s SIZE -x threads_per_block_x -y threads_per_block_y -b replicate_input
+
+MATRIX SIZE = SIZE * SIZE
+replicate_input = 1 -> YES, 0 -> NO
+
+E.g. Matrix of 1024*1024 and block size 32*32 with replicated input:
+
+$ bin/mat_mul_redundant -s 1024 -x 32 -y 32 -b 1
+
+
