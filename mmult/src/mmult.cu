@@ -230,14 +230,14 @@ bool test( void * h_C1, void * h_C2, int N){
 	  if (correct == false){
           local_errors++;
           #if ROBUST_PRINTING
-            printf("ERROR detected at C[%d][%d]\n", i, j);
+            printf("ERROR detected at C[%d][%d]\n", i, j); fflush(stdout);
           #endif
       }
     }
   }
   if (local_errors !=0) {
-      printf("- #run: %u\n", runs_counter);
-	  printf("ERRORS detected: %d\n", local_errors);
+      printf("- #run: %u\n", runs_counter); 
+	  printf("ERRORS detected: %d\n", local_errors); fflush(stdout);
       correct=false;
   }
 
@@ -252,8 +252,8 @@ bool FindFirstError( void * h_C1, void * h_C2, int N){
     for (int j = 0; j < N && correct==true; ++j){
       correct = (((float*)h_C1)[j + i*N] == ((float*)h_C2)[j + i*N]);
 	  if (correct == false){
-          printf("- #run: %u\n", runs_counter);
-          printf("ERROR detected at C[%d][%d]\n", i, j);
+          printf("- #run: %u\n", runs_counter); 
+          printf("ERROR detected at C[%d][%d]\n", i, j); fflush(stdout);
       }
     }
   }
@@ -283,9 +283,9 @@ bool Golden_check(void *h_C, int m, int n, int k) {
 		
         if (rel_err > eps)
         {
-            // printf("- #run: %u\n", runs_counter);            
+            // printf("- #run: %u\n", runs_counter);   fflush(stdout);         
             // printf("ERROR: Matrix[%d][%d]=%.8f, ref=%.8f error term is > %E\n", 
-               // i-1, j-1, ((float*)h_C)[ct], i*j*factor, eps);
+               // i-1, j-1, ((float*)h_C)[ct], i*j*factor, eps); fflush(stdout);fflush(stdout);
             // correct = false;
           local_errors++;
 
@@ -295,7 +295,7 @@ bool Golden_check(void *h_C, int m, int n, int k) {
     }
     if (local_errors !=0){
       printf("- #run: %u\n", runs_counter); 
-      printf(" ERRORS: %u\n", local_errors);  
+      printf(" ERRORS: %u\n", local_errors);  fflush(stdout);
       correct=false;
     }
     return correct;
@@ -305,7 +305,7 @@ bool Golden_check(void *h_C, int m, int n, int k) {
 void printMatrix( void * matrix , int N){
   for(int i = 0 ; i < N ; i++){
     for(int j=0; j<N ; j++){
-      printf("%i ", (int)((float *)matrix)[i * N + j ]);
+      printf("%i ", (int)((float *)matrix)[i * N + j ]); fflush(stdout);
 	  //printf("%.8f ", ((float *)matrix)[i * N + j ]);
     }
     printf("\n");
@@ -336,15 +336,16 @@ int main (int argc, char* argv[]) {
   */
   check_and_parse(argc,argv,&N,&threads_per_blockx,&threads_per_blocky,&rblock,&replicate_input);
   #if ROBUST_PRINTING
-    printf("Hw: Jetson TX2, Pascal arch \r\n");
-    printf("Test: MMULT_DMR\r\n");
+    printf("Hw: Jetson TX2, Pascal arch \n");
+    printf("Test: MMULT_DMR\n");
     if (replicate_input) printf("Replicating the input for each kernel\n");
-    printf("Version: 1.0 \r\n");
+    printf("Version: 1.0 \n");
     printf("matrix size:%d\n", N);  
-    printf(" data type: float\r\n");
+    printf(" data type: float\n");
   #else
-    printf("Hw:TX2, T:MMULT_DMR, V:%d, ThBlck:%d, Sz:%d, Dt:fp, RunsB:%d\r\n", replicate_input, threads_per_blockx, N, rblock);
+    printf("Hw:TX2, T:MMULT_DMR, V:%d, ThBlck:%d, Sz:%d, Dt:fp, RunsB:%d\n", replicate_input, threads_per_blockx, N, rblock);
   #endif
+  fflush(stdout);
   
   /*
   * Perform matrix multiplication C = A*B
