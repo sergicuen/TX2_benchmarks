@@ -1,13 +1,7 @@
 /*
  * nn.cu
- * Nearest Neighbor UNHARDENED
+ * Nearest Neighbor
  * SC modified for radiation tests
- * Init data
- * for (i -> RBLOCK)
- *      if (i=0) calcula dist_gold
-*       else checkea(dist, dist_gold
-*       if (correcto) print ok
- *      else print_error exit(0)
  */
 
 #include <stdio.h>
@@ -28,9 +22,18 @@
 #define LATITUDE_POS 28	// character position of the latitude value in each record
 #define OPEN 10000	// initial value of nearest neighbors
 
-#define RBLOCK  100
+#ifdef TRIPLE
+#define NUM_STREAMS 3
+#else
+#ifdef REDUNDANT
+#define NUM_STREAMS 2
+#endif
+#endif
+
+#define RBLOCK  1
 
 unsigned int runs_counter=0;
+unsigned int runs_werror=0;
 
 static void HandleError( cudaError_t err,
                          const char *file,
@@ -44,12 +47,12 @@ static void HandleError( cudaError_t err,
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 
 
-
+#ifdef REDUNDANT
 bool float_equals(float a, float b, float epsilon = 0.001)
 {
     return std::abs(a - b) < epsilon;
 }
-
+#endif
 
 struct timeval time_start;
 struct timeval time_end;
@@ -83,25 +86,48 @@ void findLowest(std::vector<Record> &records,float *distances,int numRecords,int
 void printUsage();
 int parseCommandline(int argc, char *argv[], char* filename,int *r,float *lat,float *lng,
                      int *q, int *t, int *p, int *d, int *w, int *f, int* s,
-		     int* a);
+		     int* a, int* k, int* g);
+
+
+__device__ int d_num_errors=0;
+/**
+ * Kernel
+ * Computes differences between two vectors
+ */
+ __global__ void compute_difference(float *d_distances, float *d_distances_redundant, int numRecords)
+{
+  float epsilon = 0.001;
+  int globalId = gridDim.x * blockDim.x * blockIdx.y + blockDim.x * blockIdx.x + threadIdx.x;
+  if (globalId < numRecords) {
+    float *dist=d_distances+globalId;
+    float *distances_redundant=d_distances_redundant+globalId;
+    if (std::abs((*dist) - (*distances_redundant)) < epsilon){
+      //perform atomic add
+      atomicAdd(&d_num_errors, 1);
+    }
+  }
+} 
 
 /**
 * Kernel
 * Executed on GPU
 * Calculates the Euclidean distance from each record in the database to the target position
 */
-__global__ void euclid(LatLong *d_locations, float *d_distances, int numRecords,float lat, float lng, int work_factor)
+__global__ void euclid(LatLong *d_locations, float *d_distances, int numRecords,float lat, float lng, int work_factor, int ITERACIONES_KERNEL)
 {
-  int globalId = gridDim.x * blockDim.x * blockIdx.y + blockDim.x * blockIdx.x + threadIdx.x;
-  //int globalId = (blockDim.x * ( gridDim.x * blockIdx.y + blockIdx.x ) + threadIdx.x) * work_factor; // more efficient
-  for(int k = 0; k < work_factor; ++k){
-    LatLong *latLong = d_locations+globalId;
-    if (globalId < numRecords) {
+  for (int i = 0; i < ITERACIONES_KERNEL; i++){
+    int globalId = gridDim.x * blockDim.x * blockIdx.y + blockDim.x * blockIdx.x + threadIdx.x;
+    for(int k = 0; k < work_factor; ++k){
+      LatLong *latLong = d_locations+globalId;
+      if (globalId < numRecords) {
         float *dist=d_distances+globalId;
-        *dist = (float)sqrt((lat-latLong->lat)*(lat-latLong->lat)+(lng-latLong->lng)*(lng-latLong->lng));
-	  }
-    globalId += (gridDim.x * blockDim.x * gridDim.y * blockDim.y);
-  }
+        // Versión con varias iteraciones por kernel
+	if (i==0) {*dist=0;}
+	*dist += (float)sqrt((lat-latLong->lat)*(lat-latLong->lat)+(lng-latLong->lng)*(lng-latLong->lng));
+      }
+      globalId += (gridDim.x * blockDim.x * gridDim.y * blockDim.y);
+    }
+  }// end niteraciones
 }
 
 /**
@@ -111,47 +137,44 @@ __global__ void euclid(LatLong *d_locations, float *d_distances, int numRecords,
 int main(int argc, char* argv[])
 {
   gettimeofday(&time_start, NULL);
-	int    i=0;
-	float lat, lng;
-	int quiet=0,timing=0,platform=0,device=0;
+  int i=0;
+  float lat, lng;
+  int quiet=0,timing=0,platform=0,device=0;
   //int VERSION = 0;
-	long int TotalTimeRunBlock=0;
-	std::vector<Record> records;
-	std::vector<LatLong> locations;
-	char filename[100];
-	int resultsCount=10;
-    
-long int TotalKernelExecutionTime;
 
+  std::vector<Record> records;
+  std::vector<LatLong> locations;
+  char filename[100];
+  int resultsCount=10;
+  int ITERACIONES_KERNEL = 1;
+  int COMPARACION_GPU = 0;
+    
   int work_factor = 0;
   int thread_factor = 0;
   int work_factor_redundant = 0;
   int thread_factor_redundant = 0;
     // parse command line
-    if (parseCommandline(argc, argv, filename,&resultsCount,&lat,&lng,
+  if (parseCommandline(argc, argv, filename,&resultsCount,&lat,&lng,
                      &quiet, &timing, &platform, &device, &work_factor,
 		     &thread_factor, &work_factor_redundant,
-		     &thread_factor_redundant)) {
+		     &thread_factor_redundant, &ITERACIONES_KERNEL, &COMPARACION_GPU)) {
       printUsage();
       return 0;
     }
 //////////////////////   SC Inicializa los datos ////////////////
-    int numRecords = loadData(filename,records,locations);
-    if (resultsCount > numRecords) resultsCount = numRecords;
+  int numRecords = loadData(filename,records,locations);
+  if (resultsCount > numRecords) resultsCount = numRecords;
 /////////////////////////////////////////////////////////////////
     
-    //Pointers to host memory
-	float *distances; 
-    
-    float *distances_gold;
-    
-	//Pointers to device memory
-	LatLong *d_locations;
-	float *d_distances;
+  //Pointers to host memory
+  float *distances;
+  //Pointers to device memory
+  LatLong *d_locations;
+  float *d_distances;
 /////// SC Calcula parámetros
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties( &deviceProp, 0 );
-  cudaThreadSynchronize();
+  HANDLE_ERROR( cudaGetDeviceProperties( &deviceProp, 0 ));
+  HANDLE_ERROR( cudaDeviceSynchronize());
   unsigned long maxGridX = deviceProp.maxGridSize[0];
   unsigned long threadsPerBlock = min( deviceProp.maxThreadsPerBlock, DEFAULT_THREADS_PER_BLOCK )/thread_factor;
   unsigned long threadsPerBlock_redundant = min( deviceProp.maxThreadsPerBlock, DEFAULT_THREADS_PER_BLOCK )/thread_factor_redundant;
@@ -173,11 +196,19 @@ long int TotalKernelExecutionTime;
 	/**
 	* Allocate memory on host and device
 	*/
-	distances = (float *)malloc(sizeof(float) * numRecords);
-	distances_gold = (float *)malloc(sizeof(float) * numRecords);
-    
-	cudaMalloc((void **) &d_locations,sizeof(LatLong) * numRecords);
-	cudaMalloc((void **) &d_distances,sizeof(float) * numRecords);
+  distances = (float *)malloc(sizeof(float) * numRecords);
+  HANDLE_ERROR( cudaMalloc((void **) &d_locations,sizeof(LatLong) * numRecords));
+  HANDLE_ERROR( cudaMalloc((void **) &d_distances,sizeof(float) * numRecords));
+#ifdef REDUNDANT
+  float *distances_redundant, *d_distances_redundant;
+  distances_redundant = (float *)malloc(sizeof(float) * numRecords);
+  HANDLE_ERROR( cudaMalloc((void **) &d_distances_redundant,sizeof(float) * numRecords));
+#endif
+#ifdef TRIPLE
+  float *distances_redundant2, *d_distances_redundant2;
+  distances_redundant2 = (float *)malloc(sizeof(float) * numRecords);
+  HANDLE_ERROR( cudaMalloc((void **) &d_distances_redundant2,sizeof(float) * numRecords));
+#endif
 
    /**
     * Transfer data from host to device
@@ -185,74 +216,164 @@ long int TotalKernelExecutionTime;
 /////////////////// SC Aquí empieza el loop /////////////////////////////////////////////
 for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
 
-    cudaMemcpy( d_locations, &locations[0], sizeof(LatLong) * numRecords, cudaMemcpyHostToDevice);
+  HANDLE_ERROR( cudaMemcpy( d_locations, &locations[0], sizeof(LatLong) * numRecords, cudaMemcpyHostToDevice) );
 
     /**
     * Execute kernel
     */
+#ifdef REDUNDANT
+  cudaStream_t streams[NUM_STREAMS];
+  for (int i = 0; i < NUM_STREAMS; ++i)
+    HANDLE_ERROR( cudaStreamCreate(&streams[i]) );
 
-// Unhardened version 
+//#ifdef TIMING
+  HANDLE_ERROR( cudaDeviceSynchronize() );
+  gettimeofday(&Kernel1_start, NULL);
+//#endif
 
-  cudaThreadSynchronize();
+    euclid<<< gridDim, threadsPerBlock, 0 , streams[0] >>>(d_locations,d_distances,numRecords,lat,lng, work_factor, ITERACIONES_KERNEL);
+
+#ifdef SERIALIZE
+  HANDLE_ERROR( cudaDeviceSynchronize() );
+#endif
+    euclid<<< gridDim_redundant, threadsPerBlock_redundant, 0 , streams[1] >>>(d_locations,d_distances_redundant,numRecords,lat,lng, work_factor_redundant, ITERACIONES_KERNEL);
+#ifdef TRIPLE
+#ifdef SERIALIZE
+  HANDLE_ERROR( cudaDeviceSynchronize());
+#endif
+    euclid<<< gridDim, threadsPerBlock, 0 , streams[2] >>>(d_locations,d_distances_redundant2,numRecords,lat,lng, work_factor, ITERACIONES_KERNEL);
+#endif
+
+//#ifdef TIMING
+  HANDLE_ERROR( cudaDeviceSynchronize());
+  HANDLE_ERROR( cudaPeekAtLastError() );
+  
+   // kernel_check (); 
+  gettimeofday(&Kernel1_end, NULL);
+//#endif
+
+#else
+
+// Original version 
+//#ifdef TIMING
+  HANDLE_ERROR( cudaDeviceSynchronize());
 	gettimeofday(&Kernel1_start, NULL);
-
-    euclid<<< gridDim, threadsPerBlock >>>(d_locations,d_distances,numRecords,lat,lng, work_factor);
-
-	cudaThreadSynchronize();
+//#endif
+    euclid<<< gridDim, threadsPerBlock >>>(d_locations,d_distances,numRecords,lat,lng, work_factor, ITERACIONES_KERNEL);
+    HANDLE_ERROR( cudaPeekAtLastError() );
+//#ifdef TIMING
+  HANDLE_ERROR( cudaDeviceSynchronize());
 	gettimeofday(&Kernel1_end, NULL);
+//#endif
 
+#endif
+  HANDLE_ERROR( cudaDeviceSynchronize() );
+  if (!COMPARACION_GPU){
+    //Copy data from device memory to host memory
+    HANDLE_ERROR( cudaMemcpy( distances, d_distances, sizeof(float)*numRecords, cudaMemcpyDeviceToHost ) );
+  
+#ifdef REDUNDANT
+#ifdef TIMING
+    gettimeofday(&Transfer1_start, NULL);
+#endif
+    HANDLE_ERROR( cudaMemcpy( distances_redundant, d_distances_redundant, sizeof(float)*numRecords, cudaMemcpyDeviceToHost ) );
 
-// #endif
-    cudaThreadSynchronize();
+#ifdef TRIPLE
+    HANDLE_ERROR( cudaMemcpy( distances_redundant2, d_distances_redundant2, sizeof(float)*numRecords, cudaMemcpyDeviceToHost ) );
+#endif
 
-  //Copy data from device memory to host memory
-  cudaMemcpy( distances, d_distances, sizeof(float)*numRecords, cudaMemcpyDeviceToHost );
-
-  // printf ("run=%d\n",runs_counter);
-  // for (int i=0; i<10; i++){
-		// printf("calc:%f \n", distances[i] );
-  // }
+#ifdef TIMING
+    gettimeofday(&Transfer1_end, NULL);
+#endif
+#endif
+  }
+#ifdef REDUNDANT
+#ifdef TIMING
+    struct timeval time_compare_begin1;
+    struct timeval time_compare_end1;
+	
+    gettimeofday(&time_compare_begin1, NULL);
+#endif
 
 // SC REaliza el check //////////////////////////////////////////////////////////////////////////////
-    // la primera ejecución es para guardar el golden
-  bool correct = true;
-  if (runs_counter==0) {
-		  printf("rellenando golden\n");
-          for(int i = 0; i < numRecords; ++i){
-               distances_gold[i] = distances[i];
-          }  
-  }
-  else{
-      for(int i = 0; i < numRecords && correct; ++i)
-        correct = float_equals(distances[i], distances_gold[i]);
-  }
-  
-  
+bool correct = true;
 
-	//printf("runs_counter: %u\n", runs_counter);
+  typeof(d_num_errors) num_errors = 0;
+if (COMPARACION_GPU){ //start comparison in GPU
+  compute_difference<<< gridDim, threadsPerBlock >>>(d_distances, d_distances_redundant, numRecords);
+  HANDLE_ERROR( cudaDeviceSynchronize() );
+  HANDLE_ERROR( cudaPeekAtLastError() );
+#ifdef TRIPLE
+  compute_difference<<< gridDim, threadsPerBlock >>>(d_distances, d_distances_redundant2, numRecords);
+  HANDLE_ERROR( cudaDeviceSynchronize() );
+  HANDLE_ERROR( cudaPeekAtLastError() );
+#endif
+
+#ifdef TIMING
+  gettimeofday(&time_compare_end1, NULL);	
+  gettimeofday(&Transfer1_start, NULL);
+#endif
+
+  //Pass the result to the HOST
+  HANDLE_ERROR(cudaMemcpyFromSymbol(&num_errors, d_num_errors, sizeof(num_errors), 0, cudaMemcpyDeviceToHost));
+  HANDLE_ERROR( cudaDeviceSynchronize() );
+  //Update correct
+  correct = (num_errors == 0);
+
+#ifdef TIMING
+  gettimeofday(&Transfer1_end, NULL);
+#endif
+  }//end comparison in GPU
+else{ //start comparison in CPU
+    for(int i = 0; i < numRecords && correct; ++i)
+      correct = float_equals(distances[i], distances_redundant[i]);
+#ifdef TRIPLE
+    for(int i = 0; i < numRecords && correct; ++i)
+      correct = float_equals(distances[i], distances_redundant2[i]);
+#endif
+
+#ifdef TIMING
+    gettimeofday(&time_compare_end1, NULL);	
+#endif
+  } //end comparison in CPU
+
+#ifdef TIMING
+    printf("Result transfer time1: %ld us\n", get_time(Transfer1_start, Transfer1_end));
+    printf("Comparison time1: %ld us\n", get_time(time_compare_begin1, time_compare_end1));
+#endif
+
     if (correct)
-        if (runs_counter==0){printf("calculo golden");}
-        else {//printf("OK\n");
-		}
+        printf("OK\n");
     else{
-        printf("-#run:%u; ERROR \n", runs_counter);
-		for (int i=0; i<10; i++){
-		printf("gold:%f; calc:%f \n", distances_gold[i], distances[i] );
-		}
-
-        printf("TEST_CHECK:%u\n", runs_counter);
-        exit(0);
+        printf("ERROR detected\n");
+        if (COMPARACION_GPU) {
+          printf("%d ERRORS detected\n", num_errors);
+        }
+        
+        //SC 
+        numRecords = loadData(filename,records,locations);
+        runs_werror++;
+        //exit(0);
     }
-	
-/////////// SC Fin el checking ///////////////////////////
+/////////// SC Fin del checking ///////////////////////////
     //Clean up
+    HANDLE_ERROR( cudaFree(d_distances_redundant) );
+    free(distances_redundant);
 
+    #ifdef TRIPLE
+    HANDLE_ERROR( cudaFree(d_distances_redundant2) );
+    free(distances_redundant2);
+    #endif
 
-// #ifdef PRINT_OUTPUT
-    // for(int i = 0; i < numRecords; ++i)
-        // printf("%f", distances[i]);
-    // printf("\n");
-// #endif
+    for ( int i = 0; i < NUM_STREAMS; i++)
+      HANDLE_ERROR( cudaStreamDestroy(streams[i]) );
+
+#endif
+#ifdef PRINT_OUTPUT
+    for(int i = 0; i < numRecords; ++i)
+        printf("%f", distances[i]);
+    printf("\n");
+#endif
 
 // SC esto sobra  /////////////////////////////////////////////////////////////////////////////////
 	// find the resultsCount least distances
@@ -264,49 +385,37 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
       // printf("%s --> Distance=%f\n",records[i].recString,records[i].distance);
     // }
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Libero/borro salidas y device_data
-	//free(distances);
-    //Free memory
-	cudaFree(d_locations);
-	cudaFree(d_distances);
+    free(distances);
+  //Free memory
+  HANDLE_ERROR( cudaFree(d_locations) );
+  HANDLE_ERROR( cudaFree(d_distances) );
 
-	// gettimeofday(&time_end, NULL);
-	// long int TotalExecutionTime = get_time(time_start, time_end);
-	//printf("Execution time: %ld us\n", TotalExecutionTime);
+  gettimeofday(&time_end, NULL);
+  long int TotalExecutionTime = get_time(time_start, time_end);
+  printf("Execution time: %ld us\n", TotalExecutionTime);
   long int Kernel1;
   Kernel1 = get_time(Kernel1_start, Kernel1_end);
+  long int TotalKernelExecutionTime = Kernel1;
+  printf("Time for CUDA kernels:\t%ld us\n",TotalKernelExecutionTime);
+
+#ifdef TIMING
+  Kernel1 = get_time(Kernel1_start, Kernel1_end);
   TotalKernelExecutionTime = Kernel1;
-  
-  TotalTimeRunBlock=TotalTimeRunBlock+Kernel1;
-  
-  //printf("Time for CUDA kernels:\t%ld us\n",TotalKernelExecutionTime);
+  printf("Total Kernel Execution Time: %ld\n", TotalKernelExecutionTime);
 
+#ifndef REDUNDANT
+  long int TotalTransferTime = 0;
+  printf("Transfer Time: %ld, Kernel Time: %ld, Execution Time: %ld\n", TotalTransferTime, TotalKernelExecutionTime, TotalExecutionTime);
+  printf("GPU time (Transfers + Kernels): %f%%\n", (TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100);
+  printf("CPU time (rest): %f%%\n", 100 - ((TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100));
+#endif
 
-// #ifdef TIMING
-	// Kernel1 = get_time(Kernel1_start, Kernel1_end);
-	// TotalKernelExecutionTime = Kernel1;
-    // printf("Total Kernel Execution Time: %ld\n", TotalKernelExecutionTime);
-
-// #ifndef REDUNDANT
-  // long int TotalTransferTime = 0;
-	// printf("Transfer Time: %ld, Kernel Time: %ld, Execution Time: %ld\n", TotalTransferTime, TotalKernelExecutionTime, TotalExecutionTime);
-	// printf("GPU time (Transfers + Kernels): %f%%\n", (TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100);
-	// printf("CPU time (rest): %f%%\n", 100 - ((TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100));
-// #endif
-
-// #endif
+#endif
 
 ////////////////////// SC FIN DEL BUCLE ///////////////////////////////////////////////////
-}
-	
-    
-    printf("Time for %u CUDA_kernels:\t%ld us", RBLOCK ,TotalTimeRunBlock);
-    gettimeofday(&time_end, NULL);
-	long int TotalExecutionTime = get_time(time_start, time_end);
-	printf("Execution time: %ld us\n", TotalExecutionTime);
+  }
 
-
-
+printf("TEST_CHECK:%u;RUNS_WERROR:%d\n", RBLOCK, runs_werror);
 
 }
 
@@ -395,7 +504,7 @@ void findLowest(std::vector<Record> &records,float *distances,int numRecords,int
 
 int parseCommandline(int argc, char *argv[], char* filename,int *r,float *lat,float *lng,
                      int *q, int *t, int *p, int *d, int *w, int *f, int *s,
-		     int *a){
+		     int *a, int *k, int *g){
     int i;
     if (argc < 2) return 1; // error
     strncpy(filename,argv[1],100);
@@ -450,6 +559,14 @@ int parseCommandline(int argc, char *argv[], char* filename,int *r,float *lat,fl
               i++;
               *a = atoi(argv[i]);
               break;
+            case 'k'://kernel iterations
+              i++;
+              *k = atoi(argv[i]);
+              break;
+            case 'g'://comparacion por kernel
+              i++;
+              *g = 1;
+              break;
         }
       }
     }
@@ -478,6 +595,8 @@ void printUsage(){
   printf("-p [int]     Choose the platform (must choose both platform and device)\n");
   printf("-d [int]     Choose the device (must choose both platform and device)\n");
   printf("\n");
+  printf("-k [int]     Choose the number of kernel iterations\n");
+  printf("-g [int]     If 1, the comparison will be made by the gpu kernel\n");
   printf("\n");
   printf("-v [int([1 - 3])]     Choose the Version (of grid configuration) to be used by the kernels\n");
   printf("Notes: 1. The filename is required as the first parameter.\n");
