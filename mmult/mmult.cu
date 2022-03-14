@@ -500,12 +500,18 @@ for (runs_counter=0; runs_counter < rblock; runs_counter++){
 
 #ifdef REDUNDANT
   matrixMultiplicationKernel<<<blocksPerGrid,threadsPerBlock, 0, stream[1]>>>(d_pA, d_pB, d_C2, N, ITERACIONES_KERNEL);
+  // SC? esto debería ir fuera del ifdef??
   HANDLE_ERROR( cudaDeviceSynchronize() );
   HANDLE_ERROR( cudaPeekAtLastError() );
 #endif
 HANDLE_ERROR( cudaDeviceSynchronize() );
 gettimeofday(&Kernel1_end, NULL);
 
+
+// SC? hay que hacer las dos cosas cudaDeviceSynchronize() y cudaStreamSynchronize(stream[0])??
+
+
+///////// SC Check the results   //////////////////////////////////////////////////////////////
 bool correct = true;
 if (!COMPARACION_GPU){
   /*
@@ -559,6 +565,7 @@ if (!COMPARACION_GPU){
 #endif
   gettimeofday(&time_compare2, NULL);
 } //END COMPARISON BY CPU
+
 else { //COMPARISON BY GPU
 
 #ifdef REDUNDANT //No sense on perform comparison in GPU for non-redundant version
@@ -618,6 +625,7 @@ else { //COMPARISON BY GPU
     //printf("Execution time of both kernels: %u us\n", exTime);
   #endif
 
+//////////////// SC PRINT RESULTS ///////////////////////////////////////////////////
 runs_counter++;
 #if USE_GOLDEN
   if (correct==true) { 
@@ -633,7 +641,7 @@ runs_counter++;
 #else
   if (NUM_STREAMS == 1) {
     if (correct==true) {
-      //printf("OK\n");
+      printf("OK\n");
     }
     else {
       printf("ERRORS\n");
