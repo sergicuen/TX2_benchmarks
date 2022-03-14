@@ -1,9 +1,9 @@
-/*
+/****************************************************************************************
  * nn.cu
  * Nearest Neighbor
- * SC modified for radiation tests
+ * Auth: SA, SC
+ * Modified for radiation tests 14/03/2022
  *
- * 
  * Mem allocation on host
  * Init data
  *  for (RBLOCK){
@@ -13,8 +13,23 @@
  *      CopyDataFromDeviceToHost
  *      FreeDevice
  *   }
- * FreeHost  
- */
+ * FreeHost 
+ ***********************************************************
+ * Added parameters:
+ *  -k number of kernel iterations
+ *  -g GPU ckeck of redundant kernels (WARNING: must be 0 in case of UNHARDENED version)
+ *  -b number of runs per block
+ *
+ ************************************************************
+ *  UNHARD version: nn
+ *  DMR version: nn_redundant
+ *
+ * default parameters
+ * - friendly: filelist_64 -r 1000 -lat 30 -q 1 -w 850 -f 1 -s 850 -a 1 -k 1000 -g 0 -b 10
+ * - heavy: defilelist_64 -r 1000 -lat 30 -q 1 -w 1 -f 1 -s 1 -a 1 -k 1000 -g 0 -b 10
+ *
+ *
+ ******************************************************************************************/
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -149,7 +164,7 @@ __global__ void euclid(LatLong *d_locations, float *d_distances, int numRecords,
 int main(int argc, char* argv[])
 {
   gettimeofday(&time_start, NULL);
-  int i=0;
+  //int i=0;
   float lat, lng;
   int quiet=0,timing=0,platform=0,device=0;
   //int VERSION = 0;
