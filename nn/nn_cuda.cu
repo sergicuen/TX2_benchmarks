@@ -206,6 +206,28 @@ int main(int argc, char* argv[])
 	* Allocate memory on host and device
 	*/
   distances = (float *)malloc(sizeof(float) * numRecords);
+  
+///////////////////// SC Memory allocation on device must be done within the for(RBLOCK) loop
+  // HANDLE_ERROR( cudaMalloc((void **) &d_locations,sizeof(LatLong) * numRecords));
+  // HANDLE_ERROR( cudaMalloc((void **) &d_distances,sizeof(float) * numRecords));
+// #ifdef REDUNDANT
+  // float *distances_redundant, *d_distances_redundant;
+  // distances_redundant = (float *)malloc(sizeof(float) * numRecords);
+  // HANDLE_ERROR( cudaMalloc((void **) &d_distances_redundant,sizeof(float) * numRecords));
+// #endif
+// #ifdef TRIPLE
+  // float *distances_redundant2, *d_distances_redundant2;
+  // distances_redundant2 = (float *)malloc(sizeof(float) * numRecords);
+  // HANDLE_ERROR( cudaMalloc((void **) &d_distances_redundant2,sizeof(float) * numRecords));
+// #endif
+
+   /**
+    * Transfer data from host to device
+    */
+/////////////////// SC Aquí empieza el loop /////////////////////////////////////////////
+for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
+   
+// SC Allocate memory on device
   HANDLE_ERROR( cudaMalloc((void **) &d_locations,sizeof(LatLong) * numRecords));
   HANDLE_ERROR( cudaMalloc((void **) &d_distances,sizeof(float) * numRecords));
 #ifdef REDUNDANT
@@ -219,11 +241,6 @@ int main(int argc, char* argv[])
   HANDLE_ERROR( cudaMalloc((void **) &d_distances_redundant2,sizeof(float) * numRecords));
 #endif
 
-   /**
-    * Transfer data from host to device
-    */
-/////////////////// SC Aquí empieza el loop /////////////////////////////////////////////
-for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
 
   HANDLE_ERROR( cudaMemcpy( d_locations, &locations[0], sizeof(LatLong) * numRecords, cudaMemcpyHostToDevice) );
 
@@ -304,7 +321,7 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
     gettimeofday(&time_compare_begin1, NULL);
 #endif
 
-// SC REaliza el check //////////////////////////////////////////////////////////////////////////////
+// SC Realiza el check //////////////////////////////////////////////////////////////////////////////
 bool correct = true;
 
   typeof(d_num_errors) num_errors = 0;
