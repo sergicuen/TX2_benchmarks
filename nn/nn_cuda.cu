@@ -396,7 +396,8 @@ else{ //start comparison in CPU
       // printf("%s --> Distance=%f\n",records[i].recString,records[i].distance);
     // }
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-    free(distances);
+    // Este free solo se hace al final del bucle for (RBLOCK)
+    //free(distances);
   //Free memory
   HANDLE_ERROR( cudaFree(d_locations) );
   HANDLE_ERROR( cudaFree(d_distances) );
@@ -425,6 +426,8 @@ fflush(stdout);
 
 ////////////////////// SC FIN DEL BUCLE ///////////////////////////////////////////////////
   }
+  // free host memory
+free(distances);
 
 printf("TEST_CHECK:%u;RUNS_WERROR:%d\n", RBLOCK, runs_werror);
 fflush(stdout);
