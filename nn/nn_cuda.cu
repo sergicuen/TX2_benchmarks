@@ -30,7 +30,6 @@
 #endif
 #endif
 
-#define RBLOCK  1
 
 unsigned int runs_counter=0;
 unsigned int runs_werror=0;
@@ -86,7 +85,7 @@ void findLowest(std::vector<Record> &records,float *distances,int numRecords,int
 void printUsage();
 int parseCommandline(int argc, char *argv[], char* filename,int *r,float *lat,float *lng,
                      int *q, int *t, int *p, int *d, int *w, int *f, int* s,
-		     int* a, int* k, int* g);
+		     int* a, int* k, int* g, int *b);
 
 
 __device__ int d_num_errors=0;
@@ -148,6 +147,7 @@ int main(int argc, char* argv[])
   int resultsCount=10;
   int ITERACIONES_KERNEL = 1;
   int COMPARACION_GPU = 0;
+  int RBLOCK  = 1;
     
   int work_factor = 0;
   int thread_factor = 0;
@@ -157,10 +157,19 @@ int main(int argc, char* argv[])
   if (parseCommandline(argc, argv, filename,&resultsCount,&lat,&lng,
                      &quiet, &timing, &platform, &device, &work_factor,
 		     &thread_factor, &work_factor_redundant,
-		     &thread_factor_redundant, &ITERACIONES_KERNEL, &COMPARACION_GPU)) {
+		     &thread_factor_redundant, &ITERACIONES_KERNEL, &COMPARACION_GPU, &RBLOCK)) {
       printUsage();
       return 0;
     }
+  
+  printf("Hw: JetsonTX2, Pascal arch \n");
+  printf("Test: NN\n");
+  printf("RUNBLOCK: %d \n", RBLOCK);
+  printf("Iteraciones Kernel: %d \n", ITERACIONES_KERNEL);
+  printf("DMR_check en GPU: %d \n", COMPARACION_GPU);  
+  fflush(stdout);
+  
+  
 //////////////////////   SC Inicializa los datos ////////////////
   int numRecords = loadData(filename,records,locations);
   if (resultsCount > numRecords) resultsCount = numRecords;
@@ -192,7 +201,7 @@ int main(int argc, char* argv[])
   dim3 gridDim( ceilDiv(gridX,work_factor) * thread_factor, gridY );
   dim3 gridDim_redundant( ceilDiv(gridX_redundant,work_factor_redundant) * thread_factor_redundant, gridY_redundant );
   printf("Default (heavy) grid configuration: (%lu,%lu,%d)\n", gridX/work_factor * thread_factor, gridY ,1);
-
+  fflush(stdout);
 	/**
 	* Allocate memory on host and device
 	*/
@@ -340,10 +349,11 @@ else{ //start comparison in CPU
 #ifdef TIMING
     printf("Result transfer time1: %ld us\n", get_time(Transfer1_start, Transfer1_end));
     printf("Comparison time1: %ld us\n", get_time(time_compare_begin1, time_compare_end1));
+    fflush(stdout);
 #endif
 
     if (correct)
-        printf("OK\n");
+        printf("OK\n"); 
     else{
         printf("ERROR detected\n");
         if (COMPARACION_GPU) {
@@ -355,6 +365,7 @@ else{ //start comparison in CPU
         runs_werror++;
         //exit(0);
     }
+    fflush(stdout);
 /////////// SC Fin del checking ///////////////////////////
     //Clean up
     HANDLE_ERROR( cudaFree(d_distances_redundant) );
@@ -409,14 +420,14 @@ else{ //start comparison in CPU
   printf("GPU time (Transfers + Kernels): %f%%\n", (TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100);
   printf("CPU time (rest): %f%%\n", 100 - ((TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100));
 #endif
-
+fflush(stdout);
 #endif
 
 ////////////////////// SC FIN DEL BUCLE ///////////////////////////////////////////////////
   }
 
 printf("TEST_CHECK:%u;RUNS_WERROR:%d\n", RBLOCK, runs_werror);
-
+fflush(stdout);
 }
 
 
@@ -504,7 +515,7 @@ void findLowest(std::vector<Record> &records,float *distances,int numRecords,int
 
 int parseCommandline(int argc, char *argv[], char* filename,int *r,float *lat,float *lng,
                      int *q, int *t, int *p, int *d, int *w, int *f, int *s,
-		     int *a, int *k, int *g){
+		     int *a, int *k, int *g, int *b){
     int i;
     if (argc < 2) return 1; // error
     strncpy(filename,argv[1],100);
@@ -565,8 +576,16 @@ int parseCommandline(int argc, char *argv[], char* filename,int *r,float *lat,fl
               break;
             case 'g'://comparacion por kernel
               i++;
-              *g = 1;
+              //*g = 1; 
+              // SC modificado para que lo lea como argumento
+              *g = atoi(argv[i]);
               break;
+            // SC añadido para parametrizar el num de runs por del bloque
+            case 'b'://comparacion por kernel
+              i++;
+              *b = atoi(argv[i]);
+              break;
+
         }
       }
     }
@@ -597,6 +616,7 @@ void printUsage(){
   printf("\n");
   printf("-k [int]     Choose the number of kernel iterations\n");
   printf("-g [int]     If 1, the comparison will be made by the gpu kernel\n");
+  printf("-b [int]     choose the number of runs\n");
   printf("\n");
   printf("-v [int([1 - 3])]     Choose the Version (of grid configuration) to be used by the kernels\n");
   printf("Notes: 1. The filename is required as the first parameter.\n");
