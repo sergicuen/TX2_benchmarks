@@ -59,12 +59,12 @@ static void HandleError( cudaError_t err,
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 
 
-#ifdef REDUNDANT
+//#ifdef REDUNDANT
 bool float_equals(float a, float b, float epsilon = 0.001)
 {
     return std::abs(a - b) < epsilon;
 }
-#endif
+//#endif
 
 struct timeval time_start;
 struct timeval time_end;
