@@ -43,11 +43,11 @@ ifeq ($(arg), 10)
 endif
 
 #LOCAL_CC = gcc -g -O3 -Wall
-LOCAL_CC = gcc -O3 -Wall
+LOCAL_CC = gcc -O3 -Wall 
 #LOCAL_CC = gcc -O3 -Wall -D TIMING
 #CUDA_DIR := /usr/local/cuda-4.0
 CUDA_DIR := /usr/local/cuda
-CC := $(CUDA_DIR)/bin/nvcc
+CUDA_CC := $(CUDA_DIR)/bin/nvcc -arch=sm_60 --generate-code=arch=compute_62,code=sm_62 
 #CC := $(CUDA_DIR)/bin/nvcc -ccbin=g++-4.4
 #EXTRAFLAGS=-L/home/salcaide/gpgpu-sim_distribution/lib/gcc-4.4.7/cuda-4000/debug -lcudart
 
@@ -59,7 +59,7 @@ clean :
 	rm -rf *.o bin/* hurricane_gen
 
 nn : nn_cuda.cu
-	$(CC) $(CCFLAGS) -o bin/nn$(SUFFIX) nn_cuda.cu 
+	$(CUDA_CC) $(CCFLAGS) -o bin/nn$(SUFFIX) nn_cuda.cu 
 hurricane_gen : hurricane_gen.c
 	$(LOCAL_CC) -o $@ $< -lm
 
