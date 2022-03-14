@@ -2,6 +2,18 @@
  * nn.cu
  * Nearest Neighbor
  * SC modified for radiation tests
+ *
+ * 
+ * Mem allocation on host
+ * Init data
+ *  for (RBLOCK){
+ *      Mem allocation on device
+ *      CopyDataFromHostToDevice
+ *      Kernel computation
+ *      CopyDataFromDeviceToHost
+ *      FreeDevice
+ *   }
+ * FreeHost  
  */
 
 #include <stdio.h>
@@ -33,6 +45,7 @@
 
 unsigned int runs_counter=0;
 unsigned int runs_werror=0;
+bool errors_flag=false;
 
 static void HandleError( cudaError_t err,
                          const char *file,
@@ -177,6 +190,7 @@ int main(int argc, char* argv[])
     
   //Pointers to host memory
   float *distances;
+  float *distances_golden;
   //Pointers to device memory
   LatLong *d_locations;
   float *d_distances;
@@ -206,6 +220,7 @@ int main(int argc, char* argv[])
 	* Allocate memory on host and device
 	*/
   distances = (float *)malloc(sizeof(float) * numRecords);
+  distances_golden = (float *)malloc(sizeof(float) * numRecords);
   
 ///////////////////// SC Memory allocation on device must be done within the for(RBLOCK) loop
   // HANDLE_ERROR( cudaMalloc((void **) &d_locations,sizeof(LatLong) * numRecords));
@@ -247,6 +262,7 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
     /**
     * Execute kernel
     */
+    ////////////////////// VERSION REDUNDANT ///////////////////////////////////
 #ifdef REDUNDANT
   cudaStream_t streams[NUM_STREAMS];
   for (int i = 0; i < NUM_STREAMS; ++i)
@@ -278,7 +294,8 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
   gettimeofday(&Kernel1_end, NULL);
 //#endif
 
-#else
+    ////////////////////// VERSION UNHARDENED ///////////////////////////////////
+#else     
 
 // Original version 
 //#ifdef TIMING
@@ -290,14 +307,27 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
 //#ifdef TIMING
   HANDLE_ERROR( cudaDeviceSynchronize());
 	gettimeofday(&Kernel1_end, NULL);
+  // SC added 
+  // golden is initialized in the first iteration or in case o errors
+  if (runs_counter==0 || errors_flag==true){ 
+    HANDLE_ERROR( cudaMemcpy( distances_golden, d_distances, sizeof(float)*numRecords, cudaMemcpyDeviceToHost ) );
+    errors_flag=false; 
+  }
+  
 //#endif
 
 #endif
+
   HANDLE_ERROR( cudaDeviceSynchronize() );
+
+    /**
+    * SC Copy Results
+    */
+  
   if (!COMPARACION_GPU){
     //Copy data from device memory to host memory
     HANDLE_ERROR( cudaMemcpy( distances, d_distances, sizeof(float)*numRecords, cudaMemcpyDeviceToHost ) );
-  
+    
 #ifdef REDUNDANT
 #ifdef TIMING
     gettimeofday(&Transfer1_start, NULL);
@@ -313,6 +343,13 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
 #endif
 #endif
   }
+
+    /**
+    * SC Check Results
+    */
+    
+    
+/////////// SC Checking REDUNDANT /////////////////////////////////////////////////////
 #ifdef REDUNDANT
 #ifdef TIMING
     struct timeval time_compare_begin1;
@@ -321,9 +358,10 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
     gettimeofday(&time_compare_begin1, NULL);
 #endif
 
-// SC Realiza el check //////////////////////////////////////////////////////////////////////////////
-bool correct = true;
 
+bool correct = true;
+int num_errors_cpur=0;
+int num_errors_cput=0;
   typeof(d_num_errors) num_errors = 0;
 if (COMPARACION_GPU){ //start comparison in GPU
   compute_difference<<< gridDim, threadsPerBlock >>>(d_distances, d_distances_redundant, numRecords);
@@ -349,19 +387,26 @@ if (COMPARACION_GPU){ //start comparison in GPU
 #ifdef TIMING
   gettimeofday(&Transfer1_end, NULL);
 #endif
-  }//end comparison in GPU
+  }//end comparison in GPU FOR REDUNDANT
 else{ //start comparison in CPU
-    for(int i = 0; i < numRecords && correct; ++i)
+    // for(int i = 0; i < numRecords && correct; ++i){
+    for(int i = 0; i < numRecords; i++){
       correct = float_equals(distances[i], distances_redundant[i]);
+      if (correct==false){ num_errors_cpur++;}
+    }
 #ifdef TRIPLE
-    for(int i = 0; i < numRecords && correct; ++i)
+    // for(int i = 0; i < numRecords && correct; ++i){
+    for(int i = 0; i < numRecords; i++){
       correct = float_equals(distances[i], distances_redundant2[i]);
+      if (correct==false){ num_errors_cput++;}
+    }
 #endif
 
 #ifdef TIMING
     gettimeofday(&time_compare_end1, NULL);	
 #endif
-  } //end comparison in CPU
+
+ } //end comparison in CPU FOR REDUNDANT
 
 #ifdef TIMING
     printf("Result transfer time1: %ld us\n", get_time(Transfer1_start, Transfer1_end));
@@ -369,21 +414,26 @@ else{ //start comparison in CPU
     fflush(stdout);
 #endif
 
-    if (correct)
+    if (num_errors_cpur==0 && num_errors_cput==0)
         printf("OK\n"); 
     else{
         printf("ERROR detected\n");
         if (COMPARACION_GPU) {
           printf("%d ERRORS detected\n", num_errors);
         }
-        
-        //SC 
+        else { // SC necesita modificaciones para el TRIPLE
+          printf("%d ERRORS detected\n", num_errors_cpur);
+        }
+        //SC  si hay errores inicializamos los datos
+        num_errors_cpur=0;
+        num_errors_cput=0;
+
         numRecords = loadData(filename,records,locations);
         runs_werror++;
         //exit(0);
     }
     fflush(stdout);
-/////////// SC Fin del checking ///////////////////////////
+
     //Clean up
     HANDLE_ERROR( cudaFree(d_distances_redundant) );
     free(distances_redundant);
@@ -396,7 +446,32 @@ else{ //start comparison in CPU
     for ( int i = 0; i < NUM_STREAMS; i++)
       HANDLE_ERROR( cudaStreamDestroy(streams[i]) );
 
+/////////// SC Checking  UNHARD /////////////////////////////////////////////////
+#else  
+    bool correct_unh = true;
+    int num_errors_unh=0;
+    for(int i = 0; i < numRecords ; i++){
+      correct_unh = float_equals(distances[i], distances_golden[i]);
+       if (correct_unh==false){ num_errors_unh++;}
+    }
+    
+    if (num_errors_unh == 0)
+        printf("OK\n"); 
+    else{
+      printf("%d ERRORS detected\n", num_errors_unh);
+
+        //SC  si hay errores inicializamos los datos
+        num_errors_unh=0; 
+        errors_flag=true; 
+        numRecords = loadData(filename,records,locations);
+        runs_werror++;
+        //exit(0);
+    }
+    fflush(stdout);
+
 #endif
+
+
 #ifdef PRINT_OUTPUT
     for(int i = 0; i < numRecords; ++i)
         printf("%f", distances[i]);
@@ -445,6 +520,7 @@ fflush(stdout);
   }
   // free host memory
 free(distances);
+free(distances_golden);
 
 printf("TEST_CHECK:%u;RUNS_WERROR:%d\n", RBLOCK, runs_werror);
 fflush(stdout);
