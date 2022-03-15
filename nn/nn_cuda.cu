@@ -31,7 +31,7 @@
  *************************************************************
  *
  * Timing issues: look for  SC??
- * Error issues: the same execution presents sometimes no errores and sometimes all distances are erroneous
+ * Error issues: solved 
  *    
  * 
  ******************************************************************************************/
@@ -82,6 +82,7 @@ static void HandleError( cudaError_t err,
 //#ifdef REDUNDANT
 bool float_equals(float a, float b, float epsilon = 0.001)
 {
+	if(isinf(a) && isinf(b)){return true;}
     return std::abs(a - b) < epsilon;
 }
 //#endif
@@ -133,10 +134,12 @@ __device__ int d_num_errors=0;
   if (globalId < numRecords) {
     float *dist=d_distances+globalId;
     float *distances_redundant=d_distances_redundant+globalId;
-    if (std::abs((*dist) - (*distances_redundant)) < epsilon){
-      //perform atomic add
-      atomicAdd(&d_num_errors, 1);
-    }
+	if(!isinf((*dist)) || !isinf((*distances_redundant))){
+		if (std::abs((*dist) - (*distances_redundant)) < epsilon){
+		  //perform atomic add
+		  atomicAdd(&d_num_errors, 1);
+		}
+	}
   }
 } 
 
