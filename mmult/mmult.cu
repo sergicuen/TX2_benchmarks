@@ -68,6 +68,7 @@ __device__ int d_num_errors = 0;
 
 
 
+
 ///COMPUTE TIMING FUNCTION
 long int get_time(struct timeval time_start, struct timeval time_end){
 	long int r ((time_end.tv_sec * 1000000 + time_end.tv_usec) - (time_start.tv_sec * 1000000 + time_start.tv_usec));
@@ -91,6 +92,7 @@ static void HandleError( cudaError_t err,
 
 __global__ void compute_difference(void *C1, void *C2, int N){
   float epsilon = 0.001;
+  //numeric_limits<double>::epsilon()
   //Calculate ROW and COLUMN
   int ROW = (int) (blockIdx.y * blockDim.y + threadIdx.y);
   int COL = (int) (blockIdx.x * blockDim.x + threadIdx.x);
@@ -99,8 +101,11 @@ __global__ void compute_difference(void *C1, void *C2, int N){
   float * ptr_C2 = ((float *)C2);
   //Check inside the matrix
   if (ROW < N && COL < N) {
-    if (std::abs((ptr_C1[ROW * N + COL]) - (ptr_C2[ROW * N + COL])) < epsilon){
+    if (std::abs((ptr_C1[ROW * N + COL]) - (ptr_C2[ROW * N + COL])) > epsilon){
       atomicAdd(&d_num_errors, 1);
+      #if ROBUST_PRINTING
+        printf("ERROR detected at C[%d][%d], %f,%f\n", ROW, COL,(ptr_C1[ROW * N + COL]), (ptr_C2[ROW * N + COL]));
+      #endif
     }
   }
 }
@@ -378,9 +383,7 @@ int main (int argc, char* argv[]) {
   int N;
   int threads_per_blockx;
   int threads_per_blocky;
-#ifdef REDUNDANT 
   int num_errors = 0;
-#endif
   struct timeval time_start;
   struct timeval time_end;
   struct timeval time_compare1;
@@ -599,7 +602,7 @@ else { //COMPARISON BY GPU
   gettimeofday(&Transfer2_start, NULL);
 
   //Pass the result to the HOST
-  cudaMemcpyFromSymbol(&num_errors, "d_num_errors", sizeof(num_errors), 0, cudaMemcpyDeviceToHost);
+  cudaMemcpyFromSymbol(&num_errors, d_num_errors, sizeof(num_errors), 0, cudaMemcpyDeviceToHost);
   HANDLE_ERROR( cudaDeviceSynchronize() );
   gettimeofday(&Transfer2_end, NULL);
 
