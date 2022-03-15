@@ -671,7 +671,7 @@ else { //COMPARISON BY GPU
 		// TotalexTime = (unsigned int) ((time_end.tv_sec) - (time_start.tv_sec));
 		// printf("TEST_CHECK:%u;RUNS_WERROR:%d; EXEC_TIME:%us\n", rblock, runs_werror, TotalexTime);
 	// }
-	if (correct = false){
+	if (correct == false){
       printf("ERRORS detected by DMR\n");
       initMatrices(h_A,h_B,N);
       runs_werror++;
