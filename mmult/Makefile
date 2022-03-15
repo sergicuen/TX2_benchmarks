@@ -62,7 +62,7 @@ clean :
 
 mmult : mmult.cu
 	#$(CC) $(CCFLAGS) -o bin/mmult$(SUFFIX) mmult.cu 
-    $(CUDA_CC) $(CCFLAGS) -o bin/mmult$(SUFFIX) mmult_cuda.cu 
+    $(CUDA_CC) $(CCFLAGS) -o bin/mmult$(SUFFIX) mmult.cu 
 
 #data :
 #	mkdir data
