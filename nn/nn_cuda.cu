@@ -2,7 +2,7 @@
  * nn.cu
  * Nearest Neighbor
  * Auth: SA, SC
- * Modified for radiation tests 14/03/2022
+ * Modified for radiation tests 15/03/2022
  *
  * Mem allocation on host
  * Init data
@@ -21,12 +21,12 @@
  *  -b number of runs per block
  *
  ************************************************************
- *  UNHARD version: nn
+ *  UNHARD version: nn (-g 0)
  *  DMR version: nn_redundant
  *
  * default parameters
  * - friendly: filelist_64 -r 1000 -lat 30 -q 1 -w 850 -f 1 -s 850 -a 1 -k 1000 -g 0 -b 10
- * - heavy: defilelist_64 -r 1000 -lat 30 -q 1 -w 1 -f 1 -s 1 -a 1 -k 1000 -g 0 -b 10
+ * - heavy: filelist_64 -r 1000 -lat 30 -q 1 -w 1 -f 1 -s 1 -a 1 -k 1000 -g 0 -b 10
  *
  *
  ******************************************************************************************/
@@ -181,6 +181,7 @@ int main(int argc, char* argv[])
   int thread_factor = 0;
   int work_factor_redundant = 0;
   int thread_factor_redundant = 0;
+  long int TotalKernelExecutionTime = 0;
     // parse command line
   if (parseCommandline(argc, argv, filename,&resultsCount,&lat,&lng,
                      &quiet, &timing, &platform, &device, &work_factor,
@@ -307,6 +308,7 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
   
    // kernel_check (); 
   gettimeofday(&Kernel1_end, NULL);
+  TotalKernelExecutionTime += get_time(Kernel1_start, Kernel1_end);
 //#endif
 
     ////////////////////// VERSION UNHARDENED ///////////////////////////////////
@@ -322,6 +324,7 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
 //#ifdef TIMING
   HANDLE_ERROR( cudaDeviceSynchronize());
 	gettimeofday(&Kernel1_end, NULL);
+  TotalKernelExecutionTime += get_time(Kernel1_start, Kernel1_end);
   // SC added 
   // golden is initialized in the first iteration or in case o errors
   if (runs_counter==0 || errors_flag==true){ 
@@ -513,8 +516,8 @@ else{ //start comparison in CPU
   long int TotalExecutionTime = get_time(time_start, time_end);
   printf("Execution time: %ld us\n", TotalExecutionTime);
   long int Kernel1;
-  Kernel1 = get_time(Kernel1_start, Kernel1_end);
-  long int TotalKernelExecutionTime = Kernel1;
+  //Kernel1 = get_time(Kernel1_start, Kernel1_end);
+  //long int TotalKernelExecutionTime = Kernel1;
   printf("Time for CUDA kernels:\t%ld us\n",TotalKernelExecutionTime);
 
 #ifdef TIMING

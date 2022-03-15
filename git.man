@@ -14,13 +14,13 @@ C) AÑADIR archivos o carpetas
 
 D) ACTUALIZAR el REPO
 /DirRepo$ git commit -m "comentario"
-
+/DirRepo$ git commit -a -m "comentario" // confirma todas la modificaciones de los archivos añadidos anteriormente
 
 ######### AUTORIZAR PC en GITHUB #############################################
 A) crear clave en PC
 ssh-keygen -t rsa -C "sergio@dtic.ua.es"
 => default
-=> escribir una contraseña
+=> escribir una contraseña (cna0345)
 B) copiar la clave 
 notepad ~/.ssh/id_rsa.pub
 
@@ -45,6 +45,8 @@ git branch -M main 	// cambiamos el nombre del branch local a main (es el nombre
 git push -u origin main // envía el repo local a GitHub
 
 ######### CLONAR EL REPO GITHUB A UNA MÁQUINA ##############################
+crear directorio /DirRepo
+cd DirRepo
 git clone git@github.com:sergicuen/DirRepo.git
 
 
