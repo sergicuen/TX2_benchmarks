@@ -406,18 +406,23 @@ int main (int argc, char* argv[]) {
   * Checking arguments used to call the program
   */
   check_and_parse(argc,argv,&N,&threads_per_blockx,&threads_per_blocky,&rblock,&replicate_input, &ITERACIONES_KERNEL, &COMPARACION_GPU);
-  #if ROBUST_PRINTING
+  // #if ROBUST_PRINTING
 	printf("------------------------------\n");
     printf("Hw: Jetson TX2, Pascal arch   \n");
-    printf("Test: MMULT_DMR \n");
+    printf("Test: MMULT ");
+	#ifdef REDUNDANT
+		printf("Version: DMR \n");
+	#else
+		printf("Version: UNHARD \n");
+	#endif
     if (replicate_input) printf("Replicating the input for each kernel\n");
-    printf("Version: 1.0  \n");
+    //printf("Version: 1.0  \n");
     printf("matrix size:%d\n", N);  
     printf("------------------------------\n");
-  #else
-    printf("Hw:Jn, T:MMULT_DMR, V:%d, ThBlck:%d, Sz:%d, Dt:fp, RunsB:%d\r\n", replicate_input, threads_per_blockx, N, rblock);
-	printf("------------------------------\n");
-  #endif
+  // #else
+    // printf("Hw:Jn, T:MMULT_DMR, V:%d, ThBlck:%d, Sz:%d, Dt:fp, RunsB:%d\r\n", replicate_input, threads_per_blockx, N, rblock);
+	// printf("------------------------------\n");
+  // #endif
 	fflush(stdout);
   /*
   * Perform matrix multiplication C = A*B
