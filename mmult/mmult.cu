@@ -685,8 +685,10 @@ gettimeofday(&time_end, NULL);
 
 long int TotalExecutionTime = get_time(time_start, time_end);
 printf("Execution time: %ld us\n", TotalExecutionTime);
-long int Kernel1;
-Kernel1 = get_time(Kernel1_start, Kernel1_end);
+// long int Kernel1;
+// Kernel1 = get_time(Kernel1_start, Kernel1_end);
+long int Kernel1=0;
+Kernel1 += get_time(Kernel1_start, Kernel1_end);
 long int TotalKernelExecutionTime = Kernel1;
 #ifdef REDUNDANT
 if (COMPARACION_GPU){
