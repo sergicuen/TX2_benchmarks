@@ -47,7 +47,9 @@ LOCAL_CC = gcc -O3 -Wall
 #LOCAL_CC = gcc -O3 -Wall -D TIMING
 #CUDA_DIR := /usr/local/cuda-4.0
 CUDA_DIR := /usr/local/cuda
-CC := $(CUDA_DIR)/bin/nvcc
+#CC := $(CUDA_DIR)/bin/nvcc
+CUDA_CC := $(CUDA_DIR)/bin/nvcc -arch=sm_60 --generate-code=arch=compute_62,code=sm_62 
+
 #CC := $(CUDA_DIR)/bin/nvcc -ccbin=g++-4.4
 #EXTRAFLAGS=-L/home/salcaide/gpgpu-sim_distribution/lib/gcc-4.4.7/cuda-4000/debug -lcudart
 
@@ -59,7 +61,9 @@ clean :
 	rm -rf *.o bin/* 
 
 mmult : mmult.cu
-	$(CC) $(CCFLAGS) -o bin/mmult$(SUFFIX) mmult.cu 
+	#$(CC) $(CCFLAGS) -o bin/mmult$(SUFFIX) mmult.cu 
+    $(CUDA_CC) $(CCFLAGS) -o bin/mmult$(SUFFIX) mmult_cuda.cu 
+
 #data :
 #	mkdir data
 #	./gen_dataset.sh
