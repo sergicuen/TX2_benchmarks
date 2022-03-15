@@ -700,9 +700,9 @@ if (COMPARACION_GPU){
 long int TotalTransferTime = get_time(Transfer1_start, Transfer1_end);
 TotalTransferTime += get_time(Transfer2_start, Transfer2_end);
 printf("Time for CUDA kernels:\t%ld us\n",TotalKernelExecutionTime);
-printf("Transfer Time: %ld, Kernel Time: %ld, Execution Time: %ld\n", TotalTransferTime, TotalKernelExecutionTime, TotalExecutionTime);
-printf("GPU time (Transfers + Kernels): %f%%\n", (TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100);
-printf("CPU time (rest): %f%%\n", 100 - ((TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100));
+// printf("Transfer Time: %ld, Kernel Time: %ld, Execution Time: %ld\n", TotalTransferTime, TotalKernelExecutionTime, TotalExecutionTime);
+// printf("GPU time (Transfers + Kernels): %f%%\n", (TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100);
+// printf("CPU time (rest): %f%%\n", 100 - ((TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100));
 fflush(stdout);
 }
 mem_free_host(h_A,h_B,h_C1,h_C2);
