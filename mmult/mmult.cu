@@ -428,7 +428,7 @@ int main (int argc, char* argv[]) {
   if(SIZE < 0){ printf("Size Overflow\n"); exit(EXIT_FAILURE);}
   //printf("Matrix of size: %d\n",SIZE);
 
-gettimeofday(&time_start, NULL);
+//gettimeofday(&time_start, NULL);
 
   /*
   * Allocate pinned memory on the CPU to make asynchronous transfers.
@@ -450,6 +450,7 @@ gettimeofday(&time_start, NULL);
 //while (1){
 for (runs_counter=0; runs_counter < rblock; runs_counter++){
 
+gettimeofday(&time_start, NULL);
 
     //printf("MaT_A\n");
     //printMatrix( h_A,  N);
@@ -685,10 +686,10 @@ gettimeofday(&time_end, NULL);
 
 long int TotalExecutionTime = get_time(time_start, time_end);
 printf("Execution time: %ld us\n", TotalExecutionTime);
-// long int Kernel1;
-// Kernel1 = get_time(Kernel1_start, Kernel1_end);
-long int Kernel1=0;
-Kernel1 += get_time(Kernel1_start, Kernel1_end);
+long int Kernel1;
+Kernel1 = get_time(Kernel1_start, Kernel1_end);
+// long int Kernel1=0;
+// Kernel1 += get_time(Kernel1_start, Kernel1_end);
 long int TotalKernelExecutionTime = Kernel1;
 #ifdef REDUNDANT
 if (COMPARACION_GPU){
