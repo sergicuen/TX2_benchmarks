@@ -521,6 +521,7 @@ else{ //start comparison in CPU
   printf("Time for CUDA kernels:\t%ld us\n",TotalKernelExecutionTime);
 
 #ifdef TIMING
+  //// SC?? no entiendo este cálculo (corresponde a la ejecución del último run??)
   Kernel1 = get_time(Kernel1_start, Kernel1_end);
   TotalKernelExecutionTime = Kernel1;
   printf("Total Kernel Execution Time: %ld\n", TotalKernelExecutionTime);
