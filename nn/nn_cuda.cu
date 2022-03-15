@@ -31,9 +31,7 @@
  *************************************************************
  *
  * Timing issues: look for  SC??
- * Error issues: 
- *     ./bin/nn filelist_64 -r 1000 -lat 30 -q 1 -w 850 -f 1 -s 850 -a 1 -k 1 -g 0 -b 2 => NO ERRORS
- *	   ./bin/nn filelist_64 -r 1000 -lat 30 -q 1 -w 850 -f 1 -s 850 -a 1 -k 1 -g 0 -b 3 = > ERRORS
+ * Error issues: the same execution presents sometimes no errores and sometimes all distances are erroneous
  *    
  * 
  ******************************************************************************************/
@@ -552,7 +550,7 @@ fflush(stdout);
   // free host memory
 free(distances);
 free(distances_golden);
-
+printf("----------------------------------------\n"); 
 printf("TEST_CHECK:%u;RUNS_WERROR:%d\n", RBLOCK, runs_werror);
 fflush(stdout);
 }

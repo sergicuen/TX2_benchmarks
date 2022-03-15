@@ -31,10 +31,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////
 //
-//  TODO: 
-//	- verificar que lo c�lculos se realizan aunque los datos de entrada no hayan cambiado
-//  - bajar los clocks
-//  - SOLO FUNCIONA CON NUM_STREAMS 2
+//  Ver preguntas con SC?? 
 
 
 #include "stdio.h"
@@ -120,7 +117,7 @@ __global__ void matrixMultiplicationKernel(void *A, void *B, void *C, int N, int
         for (int i = 0; i < N; ++i) {
             tmpSum += ptr_A[ROW * N + i] * ptr_B[i * N + COL];
         }
-        ptr_C[ROW * N + COL] = tmpSum;
+        ptr_C[ROW * N + COL] += tmpSum; // SC acumula en cada iteración del kernel
       }
     }
 }
@@ -281,11 +278,16 @@ bool test( void * h_C1, void * h_C2, int N){
       }
     }
   }
+  printf("- #run: %u\n", runs_counter);
   if (local_errors !=0) {
-      printf("- #run: %u\n", runs_counter);
+      //printf("- #run: %u\n", runs_counter);
 	  printf("ERRORS detected: %d\n", local_errors);
       correct=false;
   }
+  else {
+	  printf("OK\n");
+  }
+  fflush(stdout);
 
   return correct;
 }
@@ -339,11 +341,16 @@ bool Golden_check(void *h_C, int m, int n, int k) {
         ct++;
       }
     }
+	printf("- #run: %u\n", runs_counter); 
     if (local_errors !=0){
-      printf("- #run: %u\n", runs_counter); 
+      //printf("- #run: %u\n", runs_counter); 
       printf(" ERRORS: %u\n", local_errors);  
       correct=false;
     }
+	else {
+	  printf("OK\n"); 
+	}
+	fflush(stdout);
     return correct;
 }
 
@@ -396,16 +403,18 @@ int main (int argc, char* argv[]) {
   */
   check_and_parse(argc,argv,&N,&threads_per_blockx,&threads_per_blocky,&rblock,&replicate_input, &ITERACIONES_KERNEL, &COMPARACION_GPU);
   #if ROBUST_PRINTING
-    printf("Hw: Jetson nano, Maxwell arch \r\n");
-    printf("Test: MMULT_DMR\r\n");
+	printf("------------------------------\n");
+    printf("Hw: Jetson TX2, Pascal arch   \n");
+    printf("Test: MMULT_DMR \n");
     if (replicate_input) printf("Replicating the input for each kernel\n");
-    printf("Version: 1.0 \r\n");
+    printf("Version: 1.0  \n");
     printf("matrix size:%d\n", N);  
-    printf(" data type: float\r\n");
+    printf("------------------------------\n");
   #else
     printf("Hw:Jn, T:MMULT_DMR, V:%d, ThBlck:%d, Sz:%d, Dt:fp, RunsB:%d\r\n", replicate_input, threads_per_blockx, N, rblock);
+	printf("------------------------------\n");
   #endif
-  
+	fflush(stdout);
   /*
   * Perform matrix multiplication C = A*B
   * where A, B and C are NxN matrices
@@ -500,15 +509,16 @@ for (runs_counter=0; runs_counter < rblock; runs_counter++){
 
 #ifdef REDUNDANT
   matrixMultiplicationKernel<<<blocksPerGrid,threadsPerBlock, 0, stream[1]>>>(d_pA, d_pB, d_C2, N, ITERACIONES_KERNEL);
-  // SC? esto debería ir fuera del ifdef??
+  // SC?? esto debería ir fuera del ifdef?? Hay otro cudaDeviceSynchronize fuera
   HANDLE_ERROR( cudaDeviceSynchronize() );
+  // SC?? que va primero cudaPeekAtLastError o cudaDeviceSynchronize??
   HANDLE_ERROR( cudaPeekAtLastError() );
 #endif
 HANDLE_ERROR( cudaDeviceSynchronize() );
 gettimeofday(&Kernel1_end, NULL);
 
 
-// SC? hay que hacer las dos cosas cudaDeviceSynchronize() y cudaStreamSynchronize(stream[0])??
+// SC?? hay que hacer las dos cosas cudaDeviceSynchronize() y cudaStreamSynchronize(stream[])??
 
 
 ///////// SC Check the results   //////////////////////////////////////////////////////////////
@@ -568,7 +578,7 @@ if (!COMPARACION_GPU){
 
 else { //COMPARISON BY GPU
 
-#ifdef REDUNDANT //No sense on perform comparison in GPU for non-redundant version
+#ifdef REDUNDANT //No sense to perform comparison in GPU for non-redundant version
   gettimeofday(&time_compare1, NULL);
   //Compute differences
   compute_difference<<< blocksPerGrid,threadsPerBlock >>>(d_C1, d_C2, N);
@@ -638,8 +648,9 @@ runs_counter++;
   }
   else { printf("ERRORS detected by DMR\n");
   }
+  fflush(stdout);
 #else
-  if (NUM_STREAMS == 1) {
+  if (NUM_STREAMS == 1) {   // PRINT PARA UNHARD
     if (correct==true) {
       printf("OK\n");
     }
@@ -650,7 +661,7 @@ runs_counter++;
       runs_werror++;
     } 
   }
-  else {
+  else {					// PRINT PARA REDUNDANT
 	if (correct==true && runs_counter % rblock==0 && runs_counter !=0) {
 		TotalexTime = (unsigned int) ((time_end.tv_sec) - (time_start.tv_sec));
 		printf("TEST_CHECK:%u;RUNS_WERROR:%d; EXEC_TIME:%us\n", rblock, runs_werror, TotalexTime);
@@ -663,6 +674,7 @@ runs_counter++;
       runs_werror++;
     }
   }
+  fflush(stdout);
 #endif
 
 gettimeofday(&time_end, NULL);
@@ -684,7 +696,7 @@ printf("Time for CUDA kernels:\t%ld us\n",TotalKernelExecutionTime);
 printf("Transfer Time: %ld, Kernel Time: %ld, Execution Time: %ld\n", TotalTransferTime, TotalKernelExecutionTime, TotalExecutionTime);
 printf("GPU time (Transfers + Kernels): %f%%\n", (TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100);
 printf("CPU time (rest): %f%%\n", 100 - ((TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100));
-
+fflush(stdout);
 }
 mem_free_host(h_A,h_B,h_C1,h_C2);
 // gettimeofday(&time_end, NULL);
