@@ -31,6 +31,10 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////
 //
+//  parámetros nuevos
+//  -k : kernel iterations (=1 para UNHARD ya que check no está preparada)
+//  -g : GPU check (=0 para UNHARD)
+/////////////////////////////////////////////////////////////////////////////////////////////
 //  Ver preguntas con SC?? 
 
 
@@ -636,7 +640,7 @@ else { //COMPARISON BY GPU
   #endif
 
 //////////////// SC PRINT RESULTS ///////////////////////////////////////////////////
-runs_counter++;
+// runs_counter++; // SC descomentar si se emplea el bucle while(1)
 #if USE_GOLDEN
   if (correct==true) { 
       if (correct_C1==false || correct_C2==false) {
@@ -651,10 +655,11 @@ runs_counter++;
   fflush(stdout);
 #else
   if (NUM_STREAMS == 1) {   // PRINT PARA UNHARD
-    if (correct==true) {
-      printf("OK\n");
-    }
-    else {
+    // if (correct==true) {
+      // printf("OK\n");
+    // }
+    // else {
+    if (correct == false){
       printf("ERRORS\n");
       initMat4Golden(h_A, N, N);
       initMat4Golden(h_B, N, N);
@@ -662,13 +667,11 @@ runs_counter++;
     } 
   }
   else {					// PRINT PARA REDUNDANT
-	if (correct==true && runs_counter % rblock==0 && runs_counter !=0) {
-		TotalexTime = (unsigned int) ((time_end.tv_sec) - (time_start.tv_sec));
-		printf("TEST_CHECK:%u;RUNS_WERROR:%d; EXEC_TIME:%us\n", rblock, runs_werror, TotalexTime);
-	
-    //if (correct==true) {printf("OK\n");
-    }
-	else {
+	// if (correct==true && runs_counter % rblock==0 && runs_counter !=0) {
+		// TotalexTime = (unsigned int) ((time_end.tv_sec) - (time_start.tv_sec));
+		// printf("TEST_CHECK:%u;RUNS_WERROR:%d; EXEC_TIME:%us\n", rblock, runs_werror, TotalexTime);
+	// }
+	if (correct = false){
       printf("ERRORS detected by DMR\n");
       initMatrices(h_A,h_B,N);
       runs_werror++;
@@ -678,6 +681,7 @@ runs_counter++;
 #endif
 
 gettimeofday(&time_end, NULL);
+
 
 long int TotalExecutionTime = get_time(time_start, time_end);
 printf("Execution time: %ld us\n", TotalExecutionTime);
