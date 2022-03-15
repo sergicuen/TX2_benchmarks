@@ -28,7 +28,14 @@
  * - friendly: filelist_64 -r 1000 -lat 30 -q 1 -w 850 -f 1 -s 850 -a 1 -k 1000 -g 0 -b 10
  * - heavy: filelist_64 -r 1000 -lat 30 -q 1 -w 1 -f 1 -s 1 -a 1 -k 1000 -g 0 -b 10
  *
+ *************************************************************
  *
+ * Timing issues: look for  SC??
+ * Error issues: 
+ *     ./bin/nn filelist_64 -r 1000 -lat 30 -q 1 -w 850 -f 1 -s 850 -a 1 -k 1 -g 0 -b 2 => NO ERRORS
+ *	   ./bin/nn filelist_64 -r 1000 -lat 30 -q 1 -w 850 -f 1 -s 850 -a 1 -k 1 -g 0 -b 3 = > ERRORS
+ *    
+ * 
  ******************************************************************************************/
 
 #include <stdio.h>
@@ -190,12 +197,13 @@ int main(int argc, char* argv[])
       printUsage();
       return 0;
     }
-  
+  printf("----------------------------------------\n");
   printf("Hw: JetsonTX2, Pascal arch \n");
   printf("Test: NN\n");
   printf("RUNBLOCK: %d \n", RBLOCK);
   printf("Iteraciones Kernel: %d \n", ITERACIONES_KERNEL);
-  printf("DMR_check en GPU: %d \n", COMPARACION_GPU);  
+  printf("DMR_check en GPU: %d \n", COMPARACION_GPU); 
+  printf("----------------------------------------\n");  
   fflush(stdout);
   
   
@@ -231,6 +239,7 @@ int main(int argc, char* argv[])
   dim3 gridDim( ceilDiv(gridX,work_factor) * thread_factor, gridY );
   dim3 gridDim_redundant( ceilDiv(gridX_redundant,work_factor_redundant) * thread_factor_redundant, gridY_redundant );
   printf("Default (heavy) grid configuration: (%lu,%lu,%d)\n", gridX/work_factor * thread_factor, gridY ,1);
+  printf("----------------------------------------\n");
   fflush(stdout);
 	/**
 	* Allocate memory on host and device
@@ -257,7 +266,7 @@ int main(int argc, char* argv[])
     */
 /////////////////// SC Aquí empieza el loop /////////////////////////////////////////////
 for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
-   
+   printf("   -run: %d \n", runs_counter);
 // SC Allocate memory on device
   HANDLE_ERROR( cudaMalloc((void **) &d_locations,sizeof(LatLong) * numRecords));
   HANDLE_ERROR( cudaMalloc((void **) &d_distances,sizeof(float) * numRecords));
@@ -476,7 +485,7 @@ else{ //start comparison in CPU
     if (num_errors_unh == 0)
         printf("OK\n"); 
     else{
-      printf("%d ERRORS detected\n", num_errors_unh);
+      printf("%d ERRORS\n", num_errors_unh);
 
         //SC  si hay errores inicializamos los datos
         num_errors_unh=0; 
@@ -512,6 +521,7 @@ else{ //start comparison in CPU
   HANDLE_ERROR( cudaFree(d_locations) );
   HANDLE_ERROR( cudaFree(d_distances) );
 
+ //// SC info versiones no timing /////////////
   gettimeofday(&time_end, NULL);
   long int TotalExecutionTime = get_time(time_start, time_end);
   printf("Execution time: %ld us\n", TotalExecutionTime);
@@ -522,11 +532,13 @@ else{ //start comparison in CPU
 
 #ifdef TIMING
   //// SC?? no entiendo este cálculo (corresponde a la ejecución del último run??)
+  //// Creo que está mal calculado, es mejor cogen el TotalExecutionTime de las versiones no timing
   Kernel1 = get_time(Kernel1_start, Kernel1_end);
   TotalKernelExecutionTime = Kernel1;
   printf("Total Kernel Execution Time: %ld\n", TotalKernelExecutionTime);
 
 #ifndef REDUNDANT
+  //// SC?? TotalTransferTime siempre vale 0 ????
   long int TotalTransferTime = 0;
   printf("Transfer Time: %ld, Kernel Time: %ld, Execution Time: %ld\n", TotalTransferTime, TotalKernelExecutionTime, TotalExecutionTime);
   printf("GPU time (Transfers + Kernels): %f%%\n", (TotalTransferTime+TotalKernelExecutionTime)/(TotalExecutionTime*1.0)*100);
