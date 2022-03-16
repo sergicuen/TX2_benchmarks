@@ -31,7 +31,7 @@
  *************************************************************
  *
  * Timing issues: look for  SC??
- * Error issues: the same execution presents sometimes no errores and sometimes all distances are erroneous
+ * Error issues solved
  *    
  * 
  ******************************************************************************************/
