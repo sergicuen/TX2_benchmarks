@@ -31,7 +31,7 @@
  *************************************************************
  *
  * Timing issues: look for  SC??
- * Error issues: solved 
+ * Error issues: the same execution presents sometimes no errores and sometimes all distances are erroneous
  *    
  * 
  ******************************************************************************************/
@@ -81,8 +81,8 @@ static void HandleError( cudaError_t err,
 
 //#ifdef REDUNDANT
 bool float_equals(float a, float b, float epsilon = 0.001)
-{
-	if(isinf(a) && isinf(b)){return true;}
+{   
+    if(isinf(a) && isinf(b)){return true;}
     return std::abs(a - b) < epsilon;
 }
 //#endif
@@ -134,12 +134,12 @@ __device__ int d_num_errors=0;
   if (globalId < numRecords) {
     float *dist=d_distances+globalId;
     float *distances_redundant=d_distances_redundant+globalId;
-	if(!isinf((*dist)) || !isinf((*distances_redundant))){
-		if (std::abs((*dist) - (*distances_redundant)) < epsilon){
-		  //perform atomic add
-		  atomicAdd(&d_num_errors, 1);
-		}
-	}
+    if(!isinf((*dist)) || !isinf((*distances_redundant))){
+      if (std::abs((*dist) - (*distances_redundant)) < epsilon){
+        //perform atomic add
+        atomicAdd(&d_num_errors, 1);
+      }
+    }
   }
 } 
 
@@ -390,7 +390,7 @@ for (runs_counter=0; runs_counter < RBLOCK; runs_counter++){
 bool correct = true;
 int num_errors_cpur=0;
 int num_errors_cput=0;
-  typeof(d_num_errors) num_errors = 0;
+typeof(d_num_errors) num_errors = 0;
 if (COMPARACION_GPU){ //start comparison in GPU
   compute_difference<<< gridDim, threadsPerBlock >>>(d_distances, d_distances_redundant, numRecords);
   HANDLE_ERROR( cudaDeviceSynchronize() );
@@ -420,7 +420,7 @@ else{ //start comparison in CPU
     // for(int i = 0; i < numRecords && correct; ++i){
     for(int i = 0; i < numRecords; i++){
       correct = float_equals(distances[i], distances_redundant[i]);
-      if (correct==false){ num_errors_cpur++;}
+      if (correct==false){ num_errors_cpur++;;}
     }
 #ifdef TRIPLE
     // for(int i = 0; i < numRecords && correct; ++i){

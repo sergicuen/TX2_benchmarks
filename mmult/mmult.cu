@@ -720,5 +720,5 @@ mem_free_host(h_A,h_B,h_C1,h_C2);
 //printf("TEST_CHECK:%u;RUNS_WERROR:%d; EXEC_TIME:%us\n", rblock, runs_werror, TotalexTime);
 
 
-  return 0;
+  return 65;
 }
